@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rishika.backend.controller.ActionController;
 import com.rishika.backend.filter.JWTFilter;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +19,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-
+@RequiredArgsConstructor
 @Service
 public class ExecutionService {
     private static final Logger logger = LoggerFactory.getLogger(ExecutionService.class);
     @Autowired
     private ActionController actionController;
+    @Autowired
+    private ActionService actionService;
     @Async("taskExecutor")
     public void triggerPipelineExecution(Long pxid, String jwtToken) {
         try {
@@ -203,20 +206,34 @@ public class ExecutionService {
 
             ResponseEntity<Map<String, Object>> response;
             switch (actionPath) {
-                case "/api/action/data":
-                    response = actionController.runStageAction(request);
+                case "/api/action/data-collect":
+                    response = actionService.handleDataCollection(request);
                     break;
-                case "/api/action/event":
-                    response = actionController.runStageAction2(request);
+                case "/api/action/extract":
+                    response = actionService.extract(request);
                     break;
-                case "/api/action/condition":
-                    response = actionController.runStageActionNegative(request);
+                case "/api/action/transform":
+                    response = actionService.transform(request);
+                    break;
+                case "/api/action/load":
+                    response = actionService.load(request);
+                    break;
+                case "/api/action/analysis":
+                    response = actionService.analysis(request);
+                    break;
+                case "/api/action/report":
+                    response = actionService.handleReportGeneration2(request);
+                    break;
+                case "/api/action/email":
+                    response = actionService.sendEmails(request);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown action path: " + actionPath);
             }
 
+
             Map<String, Object> body = response.getBody();
+            logger.info("body of response at execution {}",body.toString());
             String outcome = (String) body.getOrDefault("outcome", "unknown");
             stageLog.append("Stage ").append(body.getOrDefault("log_info", "")).append("\n");
 //edit here stage ke sucess code ke hisaab se

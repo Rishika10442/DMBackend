@@ -419,7 +419,8 @@ public class EngineService {
                             submitStage(stage, jwtToken, pipelineX, progressMap, stageToDependencies, dependsOnMap,
                                     sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages,pipelineFailed);
                         } else {
-                            logger.info("⏭️ Skipping stage {} as it's already submitted", sxid);
+
+                            logger.info("from here at main pipeline run function, ⏭️ Skipping stage {} as it's already submitted", sxid);
                         }
                     } else {
                         // ✅ If all dependencies are completed and none satisfy condition, mark it as skipped
@@ -435,7 +436,7 @@ public class EngineService {
                 }
 
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -480,6 +481,7 @@ public class EngineService {
 ////            pipelineX.setPipelineProgress(new ObjectMapper().writeValueAsString(progressMap));
 ////            pipelineXRepository.save(pipelineX);
             logger.info("return here from create pipelineX, all execution is done");
+            pipelineX.setStatus("Completed");
             pipelineX.setFinishedAt(LocalDateTime.now());
             pipelineXRepository.save(pipelineX);
             pipelineXRepository.flush();

@@ -29,6 +29,7 @@ public class Action {
     @Column(name = "domain", nullable = false)
     private String domain;
 
+
     @Column(name = "message")
     private String message;// "sql", "business", etc.
 
