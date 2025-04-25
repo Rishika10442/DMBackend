@@ -2,6 +2,9 @@ package com.rishika.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "pipeline_x")
@@ -18,7 +21,7 @@ public class PipelineX {
     private Long pxId;
 
     @ManyToOne
-    @JoinColumn(name = "pid", nullable = false)
+    @JoinColumn(name = "pid")
     private Pipeline pipeline;
 
     @ManyToOne
@@ -39,7 +42,7 @@ public class PipelineX {
     @Column(name = "log_info", columnDefinition = "TEXT")
     private String logInfo;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "curr_sx_id")
     private StageX currentStageX;
 
@@ -52,5 +55,15 @@ public class PipelineX {
 
     @Lob
     @Column(name = "dag", columnDefinition = "TEXT")
-    private String dag; // JSON string representation of DAG
+    private String dag; // JSON string representation of DAG\
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+
+    @Column(name = "finished_at")
+    private LocalDateTime finishedAt;
+
+
 }

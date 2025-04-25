@@ -8,4 +8,7 @@ import java.util.List;
 
 public interface StageRepo  extends JpaRepository<Stage, Long> {
     List<Stage> findByPipeline(Pipeline pipeline);
+    Stage findByPipelinePidAndUserStageId(Long pid, int userStageId);
+
+
 }

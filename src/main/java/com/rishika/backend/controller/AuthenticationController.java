@@ -30,8 +30,9 @@ public class AuthenticationController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody @Valid LoginRequest request) {
-        return ResponseEntity.ok(userService.login(request));
+    public ResponseEntity<Map<String, Object>>  login(@RequestBody @Valid LoginRequest request) {
+        Map<String, Object> response =userService.login(request);
+        return ResponseEntity.ok(response);
     }
 
 //    @GetMapping("/check-token")

@@ -11,12 +11,18 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import com.rishika.backend.mapper.StageXMapper;
@@ -30,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +55,8 @@ public class EngineService {
     private static final Logger logger = LoggerFactory.getLogger(JWTFilter.class);
     @Autowired
     private ExecutionService executionService;
+    @Value("${folderPath}")
+    private String folderPath;
 
     @Transactional
     public ResponseEntity<Map<String, Object>> createPipelineX(String pidString,String jwtToken) {
@@ -69,6 +78,14 @@ public class EngineService {
             if (pipeline.getUser() == null) {
                 response.put("status", "error");
                 response.put("message", "Pipeline has no associated user.");
+                response.put("pxid", null);
+                return ResponseEntity.badRequest().body(response);
+            }
+
+
+            if ("DISABLED".equalsIgnoreCase(pipeline.getStatus())) {
+                response.put("status", "error");
+                response.put("message", "Pipeline is disabled.");
                 response.put("pxid", null);
                 return ResponseEntity.badRequest().body(response);
             }
@@ -124,6 +141,33 @@ public class EngineService {
                 throw new RuntimeException("Error while setting pipeline progress", e);
             }
 
+            try {
+                File logsDir = new File(folderPath);
+                logger.info("logss Dir {}", logsDir.getAbsolutePath());
+                if (!logsDir.exists()) {
+                    logsDir.mkdirs();
+                }
+
+                String fileName = "pipelineX_" + saved.getPxId() + "_user_" + saved.getUser().getUserId() + ".log";
+                logger.info("Writing log file " + fileName);
+                File logFile = new File(logsDir, fileName);
+
+                if (logFile.createNewFile()) {
+                    FileWriter writer = new FileWriter(logFile);
+                    writer.write("Log file created for PipelineX ID: " + saved.getPxId());
+                    writer.close();
+
+                    saved.setLogInfo(logFile.getAbsolutePath());
+                    pipelineXRepository.flush();
+                    pipelineXRepository.save(saved);
+
+                } else {
+                    logger.debug("Log file already exists: {}", logFile.getAbsolutePath());
+                }
+            } catch (IOException e) {
+                logger.error("Failed to create log file", e);
+                throw new RuntimeException("Error while creating log file", e);
+            }
 
 
             stageXRepository.flush();
@@ -328,8 +372,9 @@ public class EngineService {
             Map<Long, String> stageOutcomes = new ConcurrentHashMap<>();
           Set<Long> submittedStages = ConcurrentHashMap.newKeySet();
             Set<Long> skippedStages = ConcurrentHashMap.newKeySet();
+            AtomicBoolean pipelineFailed = new AtomicBoolean(false);
 
-
+            pipelineX.setStatus("Running");
             StringBuilder logBuilder = new StringBuilder();
 
             // Submit initial stages and monitor progress
@@ -357,6 +402,13 @@ public class EngineService {
             while (completedStages.size() + skippedStages.size() < allStages.size()) {
                 for (StageX stage : allStages) {
                     Long sxid = stage.getSxId();
+                    if (pipelineFailed.get()) {
+                        // If pipeline failed, stop further execution
+                        logger.error("Pipeline execution failed. Aborting further stages.");
+                        pipelineX.setStatus("FAILED"); // Set pipeline status to failed
+                        pipelineXRepository.save(pipelineX); // Save pipeline status
+                        return; // Exit the method and stop execution
+                    }
 
                     if (completedStages.contains(sxid) || skippedStages.contains(sxid)) {
                         continue; // Already handled
@@ -365,7 +417,7 @@ public class EngineService {
                     if (canRunStage(sxid, stageOutcomes, stageToDependencies, dependsOnMap, completedStages)) {
                         if (submittedStages.add(sxid)) {
                             submitStage(stage, jwtToken, pipelineX, progressMap, stageToDependencies, dependsOnMap,
-                                    sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages);
+                                    sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages,pipelineFailed);
                         } else {
                             logger.info("⏭️ Skipping stage {} as it's already submitted", sxid);
                         }
@@ -428,6 +480,10 @@ public class EngineService {
 ////            pipelineX.setPipelineProgress(new ObjectMapper().writeValueAsString(progressMap));
 ////            pipelineXRepository.save(pipelineX);
             logger.info("return here from create pipelineX, all execution is done");
+            pipelineX.setFinishedAt(LocalDateTime.now());
+            pipelineXRepository.save(pipelineX);
+            pipelineXRepository.flush();
+            logger.info("✅ PipelineX finishedAt timestamp saved as: {}", pipelineX.getFinishedAt());
             response.put("status", "success");
             response.put("message", "Pipeline execution completed or triggered");
             response.put("pipelineProgress", progressMap);
@@ -446,86 +502,6 @@ public class EngineService {
 
     }
 
-//    private boolean canRunStage(Long sxId,
-
-//                                Map<Long, String> stageOutcomes,
-//                                Map<Long, List<StageXDependency>> dependencyMap
-//                                ) {
-//
-//        List<StageXDependency> dependencies = dependencyMap.values().stream()
-//                .flatMap(List::stream)
-//                .filter(dep -> dep.getStageX().getSxId().equals(sxId))
-//                .collect(Collectors.toList());
-//
-//        if (dependencies.isEmpty()) return true;
-//
-//        boolean isConditional = dependencies.get(0).getDependencyType() == DependencyType.CONDITIONAL;
-//
-//
-//        for (StageXDependency dep : dependencies) {
-//            Long dependsOnId = dep.getDependsOn().getSxId();
-//            String requiredOutcome = String.valueOf(dep.getStageOutcome()); // "positive" or "negative"
-//            String actualOutcome = stageOutcomes.get(dependsOnId);
-//
-//            boolean satisfied = actualOutcome != null && actualOutcome.equalsIgnoreCase(requiredOutcome);
-//
-//            if (isConditional && satisfied) return true;
-//            if (!isConditional && !satisfied) return false;
-//        }
-//
-//        return !isConditional; // return true only if all satisfied in non-conditional
-//    }
-
-//    private boolean canRunStage(Long sxId,
-//                                Map<Long, String> stageOutcomes,
-//                                Map<Long, List<StageXDependency>> dependencyMap,
-//                                Set<Long> completedStages) {
-//
-//        List<StageXDependency> dependencies = dependencyMap.values().stream()
-//                .flatMap(List::stream)
-//                .filter(dep -> dep.getStageX().getSxId().equals(sxId))
-//                .collect(Collectors.toList());
-//
-//        if (dependencies.isEmpty()) {
-//            logger.info("📦 Stage {} has no dependencies, ready to run", sxId);
-//            return true;
-//        }
-//
-//        boolean isConditional = dependencies.get(0).getDependencyType() == DependencyType.CONDITIONAL;
-//
-//        logger.info("🔍 Evaluating canRunStage for sxid={} (isConditional={}) with {} dependencies",
-//                sxId, isConditional, dependencies.size());
-//        for (StageXDependency dep : dependencies) {
-//            Long dependsOnId = dep.getDependsOn().getSxId();
-//            String requiredOutcome = String.valueOf(dep.getStageOutcome());
-//            String actualOutcome = stageOutcomes.get(dependsOnId);
-//            logger.info("➡️ Dependency: stage {} depends on stage {} with requiredOutcome='{}', actualOutcome='{}'",
-//                    sxId, dependsOnId, requiredOutcome, actualOutcome);
-//
-////            if (completedStages.contains(sxId)) {
-////                logger.info("Stage {} already completed, skipping duplicate result", sxId);
-////                return false;
-////            }
-//            // ✅ Check if the stage is completed
-//            if (!completedStages.contains(dependsOnId)) {
-//                logger.info("⛔ Dependency stage {} not completed yet. Stage {} cannot run.", dependsOnId, sxId);
-//                return false;
-//            }
-//
-//            boolean satisfied = actualOutcome != null && actualOutcome.equalsIgnoreCase(requiredOutcome);
-//            if (isConditional && satisfied) {
-//                logger.info("✅ Conditional dependency satisfied for stage {}", sxId);
-//                return true;
-//            }
-//
-//            if (!isConditional && !satisfied) {
-//                logger.info("❌ Non-conditional dependency not satisfied for stage {}", sxId);
-//                return false;
-//            }
-//        }
-//        logger.info("✅ All non-conditional dependencies satisfied for stage {}", sxId);
-//        return !isConditional; // all must be satisfied in non-conditional
-//    }
 
 
 private boolean canRunStage(Long sxId,
@@ -588,6 +564,158 @@ private boolean canRunStage(Long sxId,
     if(fullfilled==total){return true;}
     return false;
 }
+
+
+public void submitStage(StageX stage,
+                        String jwtToken,
+                        PipelineX pipelineX,
+                        Map<String, Boolean> progressMap,
+                        Map<Long, List<StageXDependency>> dependencyMap,
+                        Map<Long, List<StageXDependency>> dependsOnMap,
+                        Map<Long, StageX> sxidToStageX,
+                        ExecutorService executor,
+                        Set<Long> completedStages,
+                        Map<Long, String> stageOutcomes,
+                        StringBuilder logBuilder,
+                        Set<Long> submittedStages,
+                        AtomicBoolean pipelineFailed) {
+
+    if (completedStages.contains(stage.getSxId())) {
+        logger.info("📤Returning because already run stage sxid={}",stage.getSxId());
+        return;
+    }
+    logger.info("📤 Attempting to submit stage sxid={}, dependencies={}", stage.getSxId(), dependencyMap.get(stage.getSxId()));
+
+
+    executor.submit(() -> {
+        try {
+            Long sxid = stage.getSxId();
+            String userStageId = String.valueOf(stage.getUserStageId());
+
+            String payload = stage.getPayload();
+            String actionUrl = stage.getAction().getSourceCode();
+
+            stage.setStatus("Running");
+            stageXRepository.save(stage);
+            pipelineX.setCurrentStageX(stage);
+            pipelineXRepository.save(pipelineX);
+            stageXRepository.flush();
+            pipelineXRepository.flush();
+            logger.info("▶️ Starting stage: sxid={}, userStageId={}, actionUrl={}", sxid, userStageId, actionUrl);
+            StringBuilder stageLog = new StringBuilder();
+            Map<String, Object> result = executionService.executeStageActionWithResponse(
+                    sxid, actionUrl, payload, stageLog
+            );
+
+            int responseCode = (int) result.get("responseCode");
+            if (responseCode >= 200 && responseCode < 300) {
+                String outcome = (String) result.get("outcome");
+                stage.setStatus("COMPLETED");
+                completedStages.add(sxid);
+                stageOutcomes.put(sxid, outcome);
+                progressMap.put(userStageId, true);
+                logger.info("✅ Stage sxid={} completed with outcome: {}", sxid, outcome);
+            } else {
+                progressMap.put(userStageId, false);
+                stage.setStatus("FAILED");
+                logger.error("❌ Stage sxid={} failed with response code {}", sxid, responseCode);
+                logger.error("❌ Stage sxid={} failed with response code {}", sxid, responseCode);
+
+                // Set the pipeline failure flag
+                pipelineFailed.set(true);
+                //throw new RuntimeException("Stage " + sxid + " failed.");
+            }
+
+            stageXRepository.save(stage);
+//            synchronized (logBuilder) {
+//                logBuilder.append(stageLog);
+//                pipelineX.setLogInfo(logBuilder.toString());
+//                try {
+//                    // Save updated pipelineProgress also
+//
+//                } catch (Exception e) {
+//                    e.printStackTrace(); // Optional: handle serialization error properly
+//                }
+//
+//
+//
+//            }
+            String logFilePath = pipelineX.getLogInfo(); // Assuming you have loaded PipelineX
+
+// Append the log to the file
+            if (logFilePath != null && !logFilePath.isEmpty()) {
+                try (FileWriter fileWriter = new FileWriter(logFilePath, true)) { // true = append mode
+                    fileWriter.write(stageLog.toString());
+                } catch (IOException e) {
+                    logger.error("Failed to write logs to file: {}", logFilePath, e);
+                    // Optionally rethrow or handle silently
+                }
+            }
+            pipelineX.setPipelineProgress(new ObjectMapper().writeValueAsString(progressMap));
+            pipelineXRepository.save(pipelineX);
+            if (!pipelineFailed.get()) {
+                checkAndSubmitNextStages(sxid, jwtToken, pipelineX, progressMap, dependencyMap, dependsOnMap,
+                        sxidToStageX, executor, completedStages, stageOutcomes, logBuilder, submittedStages, pipelineFailed);
+            }
+        } catch (Exception e) {
+            String errorMsg = "❗ Exception in Stage "  + ": " + e.getMessage();
+            logger.error(errorMsg, e);
+          //  logBuilder.append("Stage ").append(stage.getSxId()).append(" error: ").append(e.getMessage()).append("\n");
+        }
+    });
+}
+
+
+
+
+    private void checkAndSubmitNextStages(Long completedSxid,
+                                          String jwtToken,
+                                          PipelineX pipelineX,
+                                          Map<String, Boolean> progressMap,
+                                          Map<Long, List<StageXDependency>> dependencyMap,
+                                          Map<Long, List<StageXDependency>> dependsOnMap,
+                                          Map<Long, StageX> sxidToStageX,
+                                          ExecutorService executor,
+                                          Set<Long> completedStages,
+                                          Map<Long, String> stageOutcomes,
+                                          StringBuilder logBuilder, Set<Long> submittedStages,
+                                          AtomicBoolean pipelineFailed) {
+
+        List<StageXDependency> dependentStages = dependsOnMap.getOrDefault(completedSxid, new ArrayList<>());
+        for (StageXDependency dep : dependentStages) {
+            StageX dependentStage = dep.getStageX();
+            Long nextSxid = dependentStage.getSxId();
+            logger.info("🔄 Checking if stage {} can run (triggered by completion of stage {})", nextSxid, completedSxid);
+
+            logger.info("➡️  Evaluating dependent stage sxid={} (depends on sxid={}, requiredOutcome={})",
+                    nextSxid, dep.getDependsOn().getSxId(), dep.getStageOutcome());
+
+
+            if (completedStages.contains(nextSxid)) {
+                logger.debug("Stage {} already completed, skipping", nextSxid);
+                continue;
+            }
+
+            if (canRunStage(nextSxid, stageOutcomes, dependencyMap,dependsOnMap, completedStages)) {
+                logger.info("✅ Submitting stage {} as all dependencies are satisfied", nextSxid);
+                if(submittedStages.contains(nextSxid)) {continue;}
+                submittedStages.add(nextSxid);
+                submitStage(dependentStage, jwtToken, pipelineX, progressMap, dependencyMap,dependsOnMap,
+                        sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages,pipelineFailed);
+            } else {
+                // If not runnable yet, remove from set so it can be retried later
+                logger.info("⛔ Dependencies not satisfied for stage {}, will check again later", nextSxid);
+                //completedStages.remove(nextSxid);
+            }
+
+
+
+        }
+    }
+
+}
+
+
 
 //    if (isConditional) {
 //        logger.info(anySatisfied ? "✅ At least one conditional dependency satisfied for stage {}" :
@@ -689,125 +817,86 @@ private boolean canRunStage(Long sxId,
 //        });
 //    }
 
-public void submitStage(StageX stage,
-                        String jwtToken,
-                        PipelineX pipelineX,
-                        Map<String, Boolean> progressMap,
-                        Map<Long, List<StageXDependency>> dependencyMap,
-                        Map<Long, List<StageXDependency>> dependsOnMap,
-                        Map<Long, StageX> sxidToStageX,
-                        ExecutorService executor,
-                        Set<Long> completedStages,
-                        Map<Long, String> stageOutcomes,
-                        StringBuilder logBuilder,
-                        Set<Long> submittedStages) {
-
-    if (completedStages.contains(stage.getSxId())) {
-        logger.info("📤Returning because already run stage sxid={}",stage.getSxId());
-        return;
-    }
-    logger.info("📤 Attempting to submit stage sxid={}, dependencies={}", stage.getSxId(), dependencyMap.get(stage.getSxId()));
-
-
-    executor.submit(() -> {
-        try {
-            Long sxid = stage.getSxId();
-            String userStageId = String.valueOf(stage.getUserStageId());
-
-            String payload = stage.getPayload();
-            String actionUrl = stage.getAction().getSourceCode();
-
-            stage.setStatus("Running");
-            stageXRepository.save(stage);
-            pipelineX.setCurrentStageX(stage);
-            pipelineXRepository.save(pipelineX);
-            stageXRepository.flush();
-            pipelineXRepository.flush();
-            logger.info("▶️ Starting stage: sxid={}, userStageId={}, actionUrl={}", sxid, userStageId, actionUrl);
-            StringBuilder stageLog = new StringBuilder();
-            Map<String, Object> result = executionService.executeStageActionWithResponse(
-                    sxid, actionUrl, payload, stageLog
-            );
-
-            int responseCode = (int) result.get("responseCode");
-            if (responseCode >= 200 && responseCode < 300) {
-                String outcome = (String) result.get("outcome");
-                stage.setStatus("COMPLETED");
-                completedStages.add(sxid);
-                stageOutcomes.put(sxid, outcome);
-                progressMap.put(userStageId, true);
-                logger.info("✅ Stage sxid={} completed with outcome: {}", sxid, outcome);
-            } else {
-                progressMap.put(userStageId, false);
-                stage.setStatus("FAILED");
-                logger.error("❌ Stage sxid={} failed with response code {}", sxid, responseCode);
-                throw new RuntimeException("Stage " + sxid + " failed.");
-            }
-
-            stageXRepository.save(stage);
-            synchronized (logBuilder) {
-                logBuilder.append(stageLog);
-                pipelineX.setLogInfo(logBuilder.toString());
-                pipelineXRepository.save(pipelineX);
-            }
-
-
-            checkAndSubmitNextStages(sxid, jwtToken, pipelineX, progressMap, dependencyMap,dependsOnMap,
-                    sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages);
-
-        } catch (Exception e) {
-            String errorMsg = "❗ Exception in Stage "  + ": " + e.getMessage();
-            logger.error(errorMsg, e);
-            logBuilder.append("Stage ").append(stage.getSxId()).append(" error: ").append(e.getMessage()).append("\n");
-        }
-    });
-}
 
 
 
+//    private boolean canRunStage(Long sxId,
 
-    private void checkAndSubmitNextStages(Long completedSxid,
-                                          String jwtToken,
-                                          PipelineX pipelineX,
-                                          Map<String, Boolean> progressMap,
-                                          Map<Long, List<StageXDependency>> dependencyMap,
-                                          Map<Long, List<StageXDependency>> dependsOnMap,
-                                          Map<Long, StageX> sxidToStageX,
-                                          ExecutorService executor,
-                                          Set<Long> completedStages,
-                                          Map<Long, String> stageOutcomes,
-                                          StringBuilder logBuilder, Set<Long> submittedStages) {
+//                                Map<Long, String> stageOutcomes,
+//                                Map<Long, List<StageXDependency>> dependencyMap
+//                                ) {
+//
+//        List<StageXDependency> dependencies = dependencyMap.values().stream()
+//                .flatMap(List::stream)
+//                .filter(dep -> dep.getStageX().getSxId().equals(sxId))
+//                .collect(Collectors.toList());
+//
+//        if (dependencies.isEmpty()) return true;
+//
+//        boolean isConditional = dependencies.get(0).getDependencyType() == DependencyType.CONDITIONAL;
+//
+//
+//        for (StageXDependency dep : dependencies) {
+//            Long dependsOnId = dep.getDependsOn().getSxId();
+//            String requiredOutcome = String.valueOf(dep.getStageOutcome()); // "positive" or "negative"
+//            String actualOutcome = stageOutcomes.get(dependsOnId);
+//
+//            boolean satisfied = actualOutcome != null && actualOutcome.equalsIgnoreCase(requiredOutcome);
+//
+//            if (isConditional && satisfied) return true;
+//            if (!isConditional && !satisfied) return false;
+//        }
+//
+//        return !isConditional; // return true only if all satisfied in non-conditional
+//    }
 
-        List<StageXDependency> dependentStages = dependsOnMap.getOrDefault(completedSxid, new ArrayList<>());
-        for (StageXDependency dep : dependentStages) {
-            StageX dependentStage = dep.getStageX();
-            Long nextSxid = dependentStage.getSxId();
-            logger.info("🔄 Checking if stage {} can run (triggered by completion of stage {})", nextSxid, completedSxid);
-
-            logger.info("➡️  Evaluating dependent stage sxid={} (depends on sxid={}, requiredOutcome={})",
-                    nextSxid, dep.getDependsOn().getSxId(), dep.getStageOutcome());
-
-
-            if (completedStages.contains(nextSxid)) {
-                logger.debug("Stage {} already completed, skipping", nextSxid);
-                continue;
-            }
-
-            if (canRunStage(nextSxid, stageOutcomes, dependencyMap,dependsOnMap, completedStages)) {
-                logger.info("✅ Submitting stage {} as all dependencies are satisfied", nextSxid);
-                if(submittedStages.contains(nextSxid)) {continue;}
-                submittedStages.add(nextSxid);
-                submitStage(dependentStage, jwtToken, pipelineX, progressMap, dependencyMap,dependsOnMap,
-                        sxidToStageX, executor, completedStages, stageOutcomes, logBuilder,submittedStages);
-            } else {
-                // If not runnable yet, remove from set so it can be retried later
-                logger.info("⛔ Dependencies not satisfied for stage {}, will check again later", nextSxid);
-                //completedStages.remove(nextSxid);
-            }
-
-
-
-        }
-    }
-
-}
+//    private boolean canRunStage(Long sxId,
+//                                Map<Long, String> stageOutcomes,
+//                                Map<Long, List<StageXDependency>> dependencyMap,
+//                                Set<Long> completedStages) {
+//
+//        List<StageXDependency> dependencies = dependencyMap.values().stream()
+//                .flatMap(List::stream)
+//                .filter(dep -> dep.getStageX().getSxId().equals(sxId))
+//                .collect(Collectors.toList());
+//
+//        if (dependencies.isEmpty()) {
+//            logger.info("📦 Stage {} has no dependencies, ready to run", sxId);
+//            return true;
+//        }
+//
+//        boolean isConditional = dependencies.get(0).getDependencyType() == DependencyType.CONDITIONAL;
+//
+//        logger.info("🔍 Evaluating canRunStage for sxid={} (isConditional={}) with {} dependencies",
+//                sxId, isConditional, dependencies.size());
+//        for (StageXDependency dep : dependencies) {
+//            Long dependsOnId = dep.getDependsOn().getSxId();
+//            String requiredOutcome = String.valueOf(dep.getStageOutcome());
+//            String actualOutcome = stageOutcomes.get(dependsOnId);
+//            logger.info("➡️ Dependency: stage {} depends on stage {} with requiredOutcome='{}', actualOutcome='{}'",
+//                    sxId, dependsOnId, requiredOutcome, actualOutcome);
+//
+////            if (completedStages.contains(sxId)) {
+////                logger.info("Stage {} already completed, skipping duplicate result", sxId);
+////                return false;
+////            }
+//            // ✅ Check if the stage is completed
+//            if (!completedStages.contains(dependsOnId)) {
+//                logger.info("⛔ Dependency stage {} not completed yet. Stage {} cannot run.", dependsOnId, sxId);
+//                return false;
+//            }
+//
+//            boolean satisfied = actualOutcome != null && actualOutcome.equalsIgnoreCase(requiredOutcome);
+//            if (isConditional && satisfied) {
+//                logger.info("✅ Conditional dependency satisfied for stage {}", sxId);
+//                return true;
+//            }
+//
+//            if (!isConditional && !satisfied) {
+//                logger.info("❌ Non-conditional dependency not satisfied for stage {}", sxId);
+//                return false;
+//            }
+//        }
+//        logger.info("✅ All non-conditional dependencies satisfied for stage {}", sxId);
+//        return !isConditional; // all must be satisfied in non-conditional
+//    }

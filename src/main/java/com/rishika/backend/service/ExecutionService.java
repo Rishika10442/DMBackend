@@ -225,6 +225,7 @@ public class ExecutionService {
             result.put("fullResponse", body);
 
         } catch (Exception e) {
+            logger.info("Failed to execute stage action", e);
             stageLog.append("Error in local stage call: ").append(e.getMessage()).append("\n");
             result.put("outcome", "error");
             result.put("responseCode", 500);

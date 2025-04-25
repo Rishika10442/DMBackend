@@ -24,7 +24,7 @@ public class StageX {
     @Column(name = "user_stage_id", nullable = false)
     private Integer userStageId;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "px_id", nullable = false)
     private PipelineX pipelineX;
 

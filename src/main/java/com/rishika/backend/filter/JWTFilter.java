@@ -1,5 +1,6 @@
 package com.rishika.backend.filter;
 import com.rishika.backend.service.UserService;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -54,6 +55,39 @@ public class JWTFilter extends OncePerRequestFilter {
         logger.debug("Extracted username from JWT: {}", username);
 
         // If username is found and SecurityContext is not already set
+//        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+//            try {
+//                var userDetails = userService.loadUserByUsername(username);  // Load user details
+//                logger.debug("User details loaded for username: {}", username);
+//
+//                if (jwtHelper.validateToken(jwt, userDetails.getUsername())) {
+//                    logger.debug("JWT is valid for user: {}", username);
+//
+//                    // Create authentication token
+//                    UsernamePasswordAuthenticationToken authToken =
+//                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+//                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+//
+//                    // Set the authentication in SecurityContext
+//                    SecurityContextHolder.getContext().setAuthentication(authToken);
+//                    logger.debug("Authentication token set for user: {}", username);
+//                } else {
+//                    logger.warn("JWT validation failed for user: {}", username);
+//                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//                    response.setContentType("application/json");
+//                    response.getWriter().write("{\"error\": \"Invalid or expired JWT token\"}");
+//                    return; // stop further processing
+//                }
+//            } catch (Exception e) {
+//                logger.error("Error loading user details for username: {}", username, e);
+//                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//                response.setContentType("application/json");
+//                response.getWriter().write("{\"error\": \"Invalid or expired JWT token\"}");
+//                return; // stop further processing
+//            }
+//        }
+
+
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 var userDetails = userService.loadUserByUsername(username);  // Load user details
@@ -72,9 +106,25 @@ public class JWTFilter extends OncePerRequestFilter {
                     logger.debug("Authentication token set for user: {}", username);
                 } else {
                     logger.warn("JWT validation failed for user: {}", username);
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Invalid or expired JWT token\"}");
+                    return; // stop further processing
                 }
+            } catch (ExpiredJwtException e) {
+                // Handle expired token gracefully without stack trace
+                logger.warn("JWT token expired for user: {}. Token expired at:", username);
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"JWT token expired\"}");
+                return; // stop further processing
             } catch (Exception e) {
+                // General exception handler, in case of other errors
                 logger.error("Error loading user details for username: {}", username, e);
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Invalid or expired JWT token\"}");
+                return; // stop further processing
             }
         }
 

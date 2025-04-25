@@ -19,7 +19,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ResponseBody
     public String handleGenericException(Exception ex) {
-        return "An error occurred: " + ex.getMessage();
+        StringBuilder errorMessage = new StringBuilder();
+        errorMessage.append("An error occurred.\n");
+
+        // Add exception type
+        errorMessage.append("Exception: ").append(ex.getClass().getSimpleName()).append("\n");
+
+        // Add exception message if available
+        if (ex.getMessage() != null) {
+            errorMessage.append("Message: ").append(ex.getMessage()).append("\n");
+        } else {
+            errorMessage.append("Message: No specific message available.\n");
+        }
+
+        return errorMessage.toString();
     }
 
 }
