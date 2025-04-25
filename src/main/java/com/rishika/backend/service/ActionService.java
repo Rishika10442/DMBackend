@@ -90,6 +90,8 @@ public class ActionService {
 //
 //
 //                logger.info("data collection fetched,{}", dataCollectionStage.getPayload());
+//                String Datapayload = dataCollectionStage.getPayload();
+//                Map<String, Object> DatapayloadMap = objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
 //            }
 //            // Step 1: Setup datasource
 //            DriverManagerDataSource dataSource = new DriverManagerDataSource();

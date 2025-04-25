@@ -1,5 +1,8 @@
 package com.rishika.backend.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rishika.backend.entity.StageX;
 import com.rishika.backend.repo.StageXRepo;
 import com.rishika.backend.service.ActionService;
@@ -34,6 +37,36 @@ public class ActionController {
         Long stageXId = Long.parseLong(request.get("stageXId").toString());
         logger.info("stage  x id is {}", stageXId);
         String payload = request.get("actionPayload").toString();
+        logger.info("payload is {}", payload);
+
+
+        try {
+            // Fetch the payload from dataCollectionStage
+
+
+            // Ensure the payload is not null or empty
+            if (payload != null && !payload.isEmpty()) {
+
+                // Use ObjectMapper to parse the payload JSON string into a Map
+                ObjectMapper objectMapper = new ObjectMapper();
+                Map<String, Object> payloadMap = objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
+
+                // Log the entire Map
+                logger.info("Parsed Payload Map: {}", payloadMap);
+
+                // Now you can access the values from the payloadMap
+
+
+            } else {
+                logger.warn("Payload is empty or null");
+            }
+
+        } catch (JsonProcessingException e) {
+            logger.error("Error processing JSON payload: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred: {}", e.getMessage());
+        }
+
 
 //        if (stageXId % 2 == 0) {
 //            Map<String, Object> failureResponse = new HashMap<>();
@@ -44,34 +77,34 @@ public class ActionController {
 //
 //            }
 
-        List<StageX> stageXs = stageXRepository.findAll();
-        List<Long> last10Ids = stageXs.stream()
-                .map(StageX::getSxId)
-                .skip(Math.max(0, stageXs.size() - 10))
-                .toList();
-
-        logger.info("Last 10 StageX IDs: {}", last10Ids);
+//        List<StageX> stageXs = stageXRepository.findAll();
+//        List<Long> last10Ids = stageXs.stream()
+//                .map(StageX::getSxId)
+//                .skip(Math.max(0, stageXs.size() - 10))
+//                .toList();
+//
+//        logger.info("Last 10 StageX IDs: {}", last10Ids);
 
 
         // Step 2: Fetch StageX using sxId
-        StageX stageX = stageXRepository.findById(stageXId).orElse(null);
-        if (stageX == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "StageX not found for ID: " + stageXId));
-        }
+//        StageX stageX = stageXRepository.findById(stageXId).orElse(null);
+//        if (stageX == null) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+//                    .body(Map.of("error", "StageX not found for ID: " + stageXId));
+//        }
+//
+//        // Step 3: Get pxId from StageX
+//        Long pxId = stageX.getPipelineX().getPxId();
 
-        // Step 3: Get pxId from StageX
-        Long pxId = stageX.getPipelineX().getPxId();
-
-        // Step 4: Find data collection stage for this pxId
-        StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pxId);
-        if (dataCollectionStage == null) {
-            logger.info("data collection stage not found for ID: " + pxId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "No data collection stage found for pipelineXId: " + pxId));
-        }
-
-        logger.info("data collection fetched,{}", dataCollectionStage.getPayload());
+//        // Step 4: Find data collection stage for this pxId
+//        StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pxId);
+//        if (dataCollectionStage == null) {
+//            logger.info("data collection stage not found for ID: " + pxId);
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+//                    .body(Map.of("error", "No data collection stage found for pipelineXId: " + pxId));
+//        }
+//
+//        logger.info("data collection fetched,{}", dataCollectionStage.getPayload());
 
         // Simulated logic (replace this with actual logic as needed)
         String outcome = "positive";

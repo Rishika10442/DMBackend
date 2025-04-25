@@ -57,4 +57,10 @@ public class GeneralController {
         return generalService.getAllActions();
     }
 
+    @GetMapping("/fetch/dashboard")
+    public ResponseEntity<Map<String, Object>> getUserDashboard(@RequestParam Long userId) {
+        Map<String, Object> response = generalService.getDashboard(userId);
+        return ResponseEntity.ok(response);
+    }
+
 }

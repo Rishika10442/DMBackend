@@ -1,15 +1,12 @@
 package com.rishika.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rishika.backend.entity.Action;
-import com.rishika.backend.entity.Pipeline;
-import com.rishika.backend.entity.PipelineX;
-import com.rishika.backend.entity.Stage;
+import com.rishika.backend.dto.PipelineSummaryDTO;
+import com.rishika.backend.dto.PipelineXSummaryDTO;
+import com.rishika.backend.entity.*;
 import com.rishika.backend.filter.JWTFilter;
-import com.rishika.backend.repo.ActionRepo;
-import com.rishika.backend.repo.PipelineRepo;
-import com.rishika.backend.repo.PipelineXRepo;
-import com.rishika.backend.repo.StageRepo;
+import com.rishika.backend.mapper.UserMapper;
+import com.rishika.backend.repo.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -17,9 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +23,9 @@ public class GeneralService {
     private final PipelineRepo pipelineRepository;
     private final StageRepo stageRepository;
     private final ActionRepo actionRepository;
+    private final UserRepo userRepository;
+    private final UserMapper mapper;
+
     private static final Logger logger = LoggerFactory.getLogger(JWTFilter.class);
 
     public Map<String, Object> getPipelineX(Long pxId) {
@@ -240,6 +238,53 @@ public class GeneralService {
 
             return ResponseEntity.internalServerError().body(response);
         }
+    }
+    public Map<String, Object> getDashboard(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            // Step 1: Fetch the user
+            Optional<User> optionalUser = userRepository.findById(userId);
+            if (optionalUser.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "User not found for ID: " + userId);
+                return response;
+            }
+
+            User user = optionalUser.get();
+
+            // Step 2: Fetch pipelines and pipelineX
+            List<Pipeline> pipelines = pipelineRepository.findByUser(user);
+            List<PipelineX> pipelineXList = pipelineXRepository.findByUser(user);
+
+            // Step 3: Convert to DTOs with safe null handling and sorting
+            List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
+                    .sorted(Comparator.comparing(
+                            Pipeline::getCreatedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder())
+                    ).reversed())
+                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
+                    .toList() : new ArrayList<>();
+
+            List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
+                    .sorted(Comparator.comparing(
+                            PipelineX::getCreatedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder())
+                    ).reversed())
+                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
+                    .toList() : new ArrayList<>();
+
+            // Step 4: Build the response
+            response.put("success", true);
+            response.put("pipelines", pipelineSummaries);
+            response.put("pipelinesX", pipelineXSummaries);
+
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "An error occurred while fetching dashboard: " + e.getMessage());
+        }
+
+        return response;
     }
 
 }
