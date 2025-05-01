@@ -227,6 +227,18 @@ public class ExecutionService {
                 case "/api/action/email":
                     response = actionService.sendEmails(request);
                     break;
+                case "/api/action/loadjsonData":
+                    response = actionService.loadJsonData(request);
+                    break;
+                case "/api/action/compareSales":
+                    response = actionService.compareCategorySales(request);
+                    break;
+                case "/api/action/sqlQuery":
+                    response = actionService.sqlQuery(request);
+                    break;
+                case "/api/action/export":
+                    response = actionService.export(request);
+                    break;
                 default:
                     throw new IllegalArgumentException("Unknown action path: " + actionPath);
             }

@@ -1,6 +1,7 @@
 package com.rishika.backend.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rishika.backend.entity.StageX;
 import com.rishika.backend.filter.JWTFilter;
@@ -26,6 +27,7 @@ import java.io.*;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +45,7 @@ public class ActionService {
 
     // You can call this method as part of your pipeline stage
     public void writeReportToFile(Map<String, Object> data, String fileName) {
-        String baseDirectory =  "D:/my-app-reports"; // <-- change to your desired folder
+        String baseDirectory = "D:/my-app-reports"; // <-- change to your desired folder
         File outputDir = new File(baseDirectory);
         if (!outputDir.exists()) {
             boolean created = outputDir.mkdirs();
@@ -160,11 +162,11 @@ public class ActionService {
             boolean hasFiles = fileCount > 0;
             boolean hasConnection = connectionString != null && !connectionString.isEmpty();
 
-            if (hasFiles && hasConnection) {
-                response.put("outcome", "error");
-                response.put("log_info", "Provide either file input or connection, not both.");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-            }
+//            if (hasFiles && hasConnection) {
+//                response.put("outcome", "error");
+//                response.put("log_info", "Provide either file input or connection, not both.");
+//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+//            }
 
             if (!hasFiles && !hasConnection) {
                 response.put("outcome", "error");
@@ -231,6 +233,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
+            final String SQL_BASE_DIR = "D:/DMBackend/";
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
 
@@ -238,7 +241,8 @@ public class ActionService {
             String actionPayloadStr = request.get("actionPayload").toString();
             Map<String, Object> payloadMap;
             try {
-                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -267,9 +271,10 @@ public class ActionService {
 
             // 4. Parse payload from data collection stage
             String datapayloadJson = dataCollectionStage.getPayload();
-            Map<String, Object>  datapayloadMap;
+            Map<String, Object> datapayloadMap;
             try {
-                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
@@ -280,7 +285,8 @@ public class ActionService {
             //Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
 
             // 5. Extract file path and connection string
-            String sqlFilePath = payloadMap.getOrDefault("file", "").toString();
+            String sqlFileName = payloadMap.getOrDefault("sqlFile", "").toString();
+            String sqlFilePath = SQL_BASE_DIR + sqlFileName;
             String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
 
             if (sqlFilePath.isEmpty() || connectionString.isEmpty()) {
@@ -331,6 +337,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
+            final String SQL_BASE_DIR = "d:/DMBackend/";
             Object stageXIdObj = request.get("stageXId");
             Object actionPayloadObj = request.get("actionPayload");
 
@@ -343,10 +350,11 @@ public class ActionService {
 
             Long stageXId = Long.parseLong(stageXIdObj.toString());
             String actionPayloadStr = actionPayloadObj.toString();
-            logger.info("here at transform , stageXid {}, actionPayload,{}",stageXId,actionPayloadStr);
+            logger.info("here at transform , stageXid {}, actionPayload,{}", stageXId, actionPayloadStr);
             Map<String, Object> payloadMap;
             try {
-                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -375,9 +383,10 @@ public class ActionService {
 
             // 4. Parse payload from data collection stage
             String datapayloadJson = dataCollectionStage.getPayload();
-            Map<String, Object>  datapayloadMap;
+            Map<String, Object> datapayloadMap;
             try {
-                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
@@ -388,7 +397,8 @@ public class ActionService {
             //Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
 
             // 5. Extract file path and connection string
-            String sqlFilePath = payloadMap.getOrDefault("file", "").toString();
+            String sqlFileName = payloadMap.getOrDefault("sqlFile", "").toString();
+            String sqlFilePath = SQL_BASE_DIR + sqlFileName;
             String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
 
             if (sqlFilePath.isEmpty() || connectionString.isEmpty()) {
@@ -437,7 +447,7 @@ public class ActionService {
     public ResponseEntity<Map<String, Object>> load(Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
         ObjectMapper objectMapper = new ObjectMapper();
-
+        final String SQL_BASE_DIR = "D:/DMBackend/";
         try {
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
@@ -446,7 +456,8 @@ public class ActionService {
             String actionPayloadStr = request.get("actionPayload").toString();
             Map<String, Object> payloadMap;
             try {
-                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -475,9 +486,10 @@ public class ActionService {
 
             // 4. Parse payload from data collection stage
             String datapayloadJson = dataCollectionStage.getPayload();
-            Map<String, Object>  datapayloadMap;
+            Map<String, Object> datapayloadMap;
             try {
-                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
@@ -488,7 +500,8 @@ public class ActionService {
             //Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
 
             // 5. Extract file path and connection string
-            String sqlFilePath = payloadMap.getOrDefault("file", "").toString();
+            String sqlFileName = payloadMap.getOrDefault("sqlFile", "").toString();
+            String sqlFilePath = SQL_BASE_DIR + sqlFileName;
             String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
 
             if (sqlFilePath.isEmpty() || connectionString.isEmpty()) {
@@ -539,6 +552,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
+            final String SQL_BASE_DIR = "D:/DMBackend/";
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
 
@@ -546,7 +560,8 @@ public class ActionService {
             String actionPayloadStr = request.get("actionPayload").toString();
             Map<String, Object> payloadMap;
             try {
-                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -575,9 +590,10 @@ public class ActionService {
 
             // 4. Parse payload from data collection stage
             String datapayloadJson = dataCollectionStage.getPayload();
-            Map<String, Object>  datapayloadMap;
+            Map<String, Object> datapayloadMap;
             try {
-                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
@@ -588,7 +604,8 @@ public class ActionService {
             //Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
 
             // 5. Extract file path and connection string
-            String sqlFilePath = payloadMap.getOrDefault("file", "").toString();
+            String sqlFileName = payloadMap.getOrDefault("sqlFile", "").toString();
+            String sqlFilePath = SQL_BASE_DIR + sqlFileName;
             String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
 
             if (sqlFilePath.isEmpty() || connectionString.isEmpty()) {
@@ -733,12 +750,13 @@ public class ActionService {
 
             Long stageXId = Long.parseLong(stageXIdObj.toString());
             String actionPayloadStr = actionPayloadObj.toString();
-            logger.info("here at report , stageXid {}, actionPayload,{}",stageXId,actionPayloadStr);
+            logger.info("here at report , stageXid {}, actionPayload,{}", stageXId, actionPayloadStr);
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> payloadMap;
 
             try {
-                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -768,7 +786,8 @@ public class ActionService {
             String Datapayload = dataCollectionStage.getPayload();
 
             try {
-                datapayloadMap = objectMapper.readValue(Datapayload, new TypeReference<>() {});
+                datapayloadMap = objectMapper.readValue(Datapayload, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 response.put("outcome", "error");
                 response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
@@ -875,7 +894,8 @@ public class ActionService {
             logger.info("Received email event for stageXId: {}", stageXId);
 
             String actionPayloadStr = request.get("actionPayload").toString();
-            Map<String, Object> payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+            Map<String, Object> payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
+            });
 
             // Get pipelineId → Find data collection stage
             StageX stageX = stageXRepository.findById(stageXId).orElse(null);
@@ -894,7 +914,8 @@ public class ActionService {
             }
 
             String datapayloadJson = dataCollectionStage.getPayload();
-            Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+            Map<String, Object> datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {
+            });
             String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
 
             if (connectionString.isEmpty()) {
@@ -954,9 +975,7 @@ public class ActionService {
                 }
 
                 logger.info("Fetched {} email(s) from database table: {}", emailList.size(), tableName);
-            }
-
-            else {
+            } else {
                 response.put("outcome", "positive");
                 response.put("log_info", "No valid source for email list found. Provide either 'csvFile' or DB details.");
                 return ResponseEntity.badRequest().body(response);
@@ -1082,4 +1101,508 @@ public class ActionService {
         Transport.send(message);
     }
 
+    public ResponseEntity<Map<String, Object>> loadJsonData(Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        try {
+            Long stageXId = Long.parseLong(request.get("stageXId").toString());
+            String payloadStr = request.get("actionPayload").toString();
+            Map<String, Object> payloadMap = mapper.readValue(payloadStr, new TypeReference<>() {
+            });
+
+            // Fetch the Data Collection Stage to get connection string
+            StageX currentStage = stageXRepository.findById(stageXId).orElse(null);
+            if (currentStage == null) {
+                response.put("outcome", "positive");
+                response.put("log_info", "StageX not found for ID: " + stageXId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            Long pipelineId = currentStage.getPipelineX().getPxId();
+            StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pipelineId);
+            if (dataCollectionStage == null) {
+                response.put("outcome", "positive");
+                response.put("log_info", "Data collection stage not found for pipelineXId: " + pipelineId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            String connectionString = mapper.readValue(dataCollectionStage.getPayload(), Map.class)
+                    .getOrDefault("connectionString", "").toString();
+
+            if (connectionString.isEmpty()) {
+                response.put("outcome", "positive");
+                response.put("log_info", "Connection string missing in data collection stage.");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            String fileName = payloadMap.getOrDefault("inputFileName", "").toString();
+            String tableName = payloadMap.getOrDefault("tableName", "").toString();
+
+            if (fileName.isEmpty() || tableName.isEmpty()) {
+                response.put("outcome", "positive");
+                response.put("log_info", "fileName or tableName is missing in the payload.");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Call your JSON-to-DB loader
+            Map<String, Object> loadResult = loadJsonToDb(fileName, tableName, connectionString);
+            boolean isSuccess = (boolean) loadResult.get("success");
+            String message = loadResult.get("message").toString();
+            logger.info("Load Result: {}", message);
+
+            if(!isSuccess){
+                response.put("outcome", "error");
+                response.put("log_info", message);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            response.put("outcome", "positive");
+            response.put("log_info", message);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("❌ Error in LoadService: ", e);
+            response.put("outcome", "positive");
+            response.put("log_info", "Exception occurred: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    public Map<String, Object> loadJsonToDb(String fileName, String tableName, String connectionString) {
+        Map<String, Object> result = new HashMap<>();
+        try (Connection conn = DriverManager.getConnection(connectionString)) {
+
+            ObjectMapper mapper = new ObjectMapper();
+            String fullPath = "D:/DMBackend/" + fileName;
+            File file = new File(fullPath);
+            JsonNode jsonArray = mapper.readTree(file);
+
+            if (!jsonArray.isArray()) {
+                result.put("success", false);
+                result.put("message", "Invalid JSON: root should be an array of objects.");
+                return result;
+            }
+
+            DatabaseMetaData metaData = conn.getMetaData();
+            ResultSet columnsRs = metaData.getColumns(null, null, tableName, null);
+            List<String> tableColumns = new ArrayList<>();
+
+            while (columnsRs.next()) {
+                tableColumns.add(columnsRs.getString("COLUMN_NAME"));
+            }
+
+            if (tableColumns.isEmpty()) {
+                result.put("success", false);
+                result.put("message", "No columns found for table: " + tableName);
+                return result;
+            }
+
+            for (JsonNode record : jsonArray) {
+                Set<String> jsonFields = new HashSet<>();
+                record.fieldNames().forEachRemaining(jsonFields::add);
+
+                Set<String> unmatchedFields = new HashSet<>(jsonFields);
+                unmatchedFields.removeAll(tableColumns);
+
+                if (!unmatchedFields.isEmpty()) {
+                    result.put("success", false);
+                    result.put("message", "Invalid JSON: Unmatched fields - " + unmatchedFields);
+                    return result;
+                }
+
+                List<String> matchedCols = new ArrayList<>();
+                List<Object> values = new ArrayList<>();
+
+                for (String col : tableColumns) {
+                    if (record.has(col)) {
+                        matchedCols.add(col);
+                        values.add(record.get(col).asText());
+                    }
+                }
+
+                if (matchedCols.isEmpty()) continue;
+
+                String colsPart = String.join(",", matchedCols);
+                String placeholders = matchedCols.stream().map(c -> "?").collect(Collectors.joining(","));
+                String sql = "INSERT INTO " + tableName + " (" + colsPart + ") VALUES (" + placeholders + ")";
+
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    for (int i = 0; i < values.size(); i++) {
+                        stmt.setObject(i + 1, values.get(i));
+                    }
+                    stmt.executeUpdate();
+                }
+            }
+
+            result.put("success", true);
+            result.put("message", "Success: JSON data inserted into " + tableName);
+            return result;
+
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "Exception: " + e.getMessage());
+            return result;
+        }
+    }
+
+    public ResponseEntity<Map<String, Object>> compareCategorySales(Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        try {
+            Long stageXId = Long.parseLong(request.get("stageXId").toString());
+            logger.info("Parsed stageXId: {}", stageXId);
+            Map<String, Object> payload = mapper.readValue(request.get("actionPayload").toString(), new TypeReference<>() {});
+            logger.info("Parsed payload: {}", payload);
+            String category1 = payload.get("category1").toString();
+            String category2 = payload.get("category2").toString();
+            logger.info("Comparing category1: '{}' with category2: '{}'", category1, category2);
+            // Step 1: Fetch connection string from data collection stage
+            StageX currentStage = stageXRepository.findById(stageXId).orElse(null);
+            if (currentStage == null) {
+                response.put("outcome", "positive");
+                response.put("log_info", "StageX not found for ID: " + stageXId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            Long pipelineId = currentStage.getPipelineX().getPxId();
+            StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pipelineId);
+            if (dataCollectionStage == null) {
+                response.put("outcome", "positive");
+                response.put("log_info", "No data collection stage found for pipeline ID: " + pipelineId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            Map<String, Object> dataPayload = mapper.readValue(dataCollectionStage.getPayload(), new TypeReference<>() {});
+            String connectionString = dataPayload.getOrDefault("connectionString", "").toString();
+
+            if (connectionString.isEmpty()) {
+                response.put("outcome", "positive");
+                response.put("log_info", "Connection string not found in data collection stage.");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Step 2: Compare category sales
+            double sales1 = 0.0;
+            double sales2 = 0.0;
+
+            try (Connection conn = DriverManager.getConnection(connectionString)) {
+                String query = """
+                        SELECT p.product_category, SUM(f.sales) AS total_sales
+                        FROM fact_sales f
+                        JOIN dim_prod p ON f.prod_id = p.prod_id
+                        WHERE p.product_category IN (?, ?)
+                        GROUP BY p.product_category
+                        """;
+
+                try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                    stmt.setString(1, category1);
+                    stmt.setString(2, category2);
+
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            String cat = rs.getString("product_category");
+                            double total = rs.getDouble("total_sales");
+
+                            if (cat.equalsIgnoreCase(category1)) {
+                                sales1 = total;
+                            } else if (cat.equalsIgnoreCase(category2)) {
+                                sales2 = total;
+                            }
+                        }
+                    }
+                }
+            }
+
+            String outcome = sales1 > sales2 ? "positive" : "negative";
+            String log = String.format("Category1 (%s) sales = %.2f, Category2 (%s) sales = %.2f", category1, sales1, category2, sales2);
+
+            response.put("outcome", outcome);
+            response.put("log_info", log);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error in category sales comparison: ", e);
+            response.put("outcome", "Error");
+            response.put("log_info", "Unexpected error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    public ResponseEntity<Map<String, Object>> sqlQuery(Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            // 1. Get stageXId
+            Long stageXId = Long.parseLong(request.get("stageXId").toString());
+
+            // 2. Parse actionPayload JSON
+            String actionPayloadStr = request.get("actionPayload").toString();
+            Map<String, Object> payloadMap;
+            try {
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+            } catch (Exception e) {
+                response.put("outcome", "error");
+                response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
+                response.put("code", 400);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            // 3. Load StageX and related data collection stage
+            StageX stageX = stageXRepository.findById(stageXId).orElse(null);
+            if (stageX == null) {
+                response.put("outcome", "error");
+                response.put("log_info", "StageX not found for ID: " + stageXId);
+                response.put("code", 404);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            Long pipelineXId = stageX.getPipelineX().getPxId();
+            StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pipelineXId);
+            if (dataCollectionStage == null) {
+                response.put("outcome", "error");
+                response.put("log_info", "No data collection stage found for pipelineXId: " + pipelineXId);
+                response.put("code", 404);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            // 4. Parse payload from data collection stage
+            String datapayloadJson = dataCollectionStage.getPayload();
+            Map<String, Object> datapayloadMap;
+            try {
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+            } catch (Exception e) {
+                response.put("outcome", "error");
+                response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
+                response.put("code", 400);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            // 5. Extract inputs
+            String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
+            String categoryName = payloadMap.getOrDefault("categoryName", "").toString();
+            String outputTableName = payloadMap.getOrDefault("outputTableName", "").toString();
+
+            if (connectionString.isEmpty() || categoryName.isEmpty() || outputTableName.isEmpty()) {
+                response.put("outcome", "error");
+                response.put("log_info", "Missing 'connectionString' or 'categoryName' or 'outputTableName'.");
+                response.put("code", 400);
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // 6. Prepare SQL query
+            String sqlQuery = String.format(
+                    "CREATE TABLE IF NOT EXISTS %s AS " +
+                            "WITH sales_summary AS (" +
+                            "    SELECT " +
+                            "        dc.state, " +
+                            "        dp.product_category, " +
+                            "        dp.product_sub_category, " +
+                            "        SUM(fs.sales) AS total_sales, " +
+                            "        SUM(fs.profit) AS total_profit " +
+                            "    FROM " +
+                            "        fact_sales fs " +
+                            "    JOIN " +
+                            "        dim_cust dc ON fs.cust_id = dc.cust_id " +
+                            "    JOIN " +
+                            "        dim_prod dp ON fs.prod_id = dp.prod_id " +
+                            "    WHERE " +
+                            "        dp.product_category = '%s' " +  // Input category here
+                            "    GROUP BY " +
+                            "        dc.state, dp.product_category, dp.product_sub_category" +
+                            "), " +
+                            "state_subcat_sales AS (" +
+                            "    SELECT " +
+                            "        state, " +
+                            "        product_sub_category, " +
+                            "        SUM(total_sales) AS state_subcat_total_sales " +
+                            "    FROM " +
+                            "        sales_summary " +
+                            "    GROUP BY " +
+                            "        state, product_sub_category" +
+                            "), " +
+                            "state_sales AS (" +
+                            "    SELECT " +
+                            "        state, " +
+                            "        SUM(total_sales) AS total_sales_in_state " +
+                            "    FROM " +
+                            "        sales_summary " +
+                            "    GROUP BY " +
+                            "        state" +
+                            ") " +
+                            "SELECT " +
+                            "    s.product_category, " +
+                            "    s.product_sub_category, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Bihar' THEN s.total_sales ELSE 0 END), 2) AS Bihar_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Delhi' THEN s.total_sales ELSE 0 END), 2) AS Delhi_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Karnataka' THEN s.total_sales ELSE 0 END), 2) AS Karnataka_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Kerala' THEN s.total_sales ELSE 0 END), 2) AS Kerala_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Maharashtra' THEN s.total_sales ELSE 0 END), 2) AS Maharashtra_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Tamil Nadu' THEN s.total_sales ELSE 0 END), 2) AS Tamil_Nadu_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'Telangana' THEN s.total_sales ELSE 0 END), 2) AS Telangana_Sales, " +
+                            "    ROUND(SUM(CASE WHEN s.state = 'West Bengal' THEN s.total_sales ELSE 0 END), 2) AS West_Bengal_Sales, " +
+                            "    ROUND(SUM(s.total_sales), 2) AS total_sales_in_subcategory " +
+                            "FROM " +
+                            "    sales_summary s " +
+                            "JOIN " +
+                            "    state_subcat_sales st ON s.state = st.state AND s.product_sub_category = st.product_sub_category " +
+                            "JOIN " +
+                            "    state_sales ss ON s.state = ss.state " +
+                            "GROUP BY " +
+                            "    s.product_category, s.product_sub_category " +
+                            "ORDER BY " +
+                            "    s.product_category, s.product_sub_category;",
+                    outputTableName, categoryName
+            );
+
+            // 7. Execute SQL
+            DriverManagerDataSource dataSource = new DriverManagerDataSource();
+            dataSource.setUrl(connectionString);
+            dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+
+            JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+            jdbcTemplate.execute(sqlQuery);
+
+            response.put("outcome", "positive");
+            response.put("log_info", "SQL executed successfully. outputTableName: " + outputTableName);
+//            response.put("executedQuery", sqlQuery);
+            response.put("code", 200);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("outcome", "error");
+            response.put("log_info", "Execution failed: " + e.getMessage());
+            response.put("code", 500);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    public ResponseEntity<Map<String, Object>> export(Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            // 1. Get stageXId
+            Long stageXId = Long.parseLong(request.get("stageXId").toString());
+
+            // 2. Parse actionPayload JSON
+            String actionPayloadStr = request.get("actionPayload").toString();
+            Map<String, Object> payloadMap;
+            try {
+                payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {});
+            } catch (Exception e) {
+                response.put("outcome", "error");
+                response.put("log_info", "Invalid actionPayload JSON: " + e.getMessage());
+                response.put("code", 400);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            // 3. Load StageX and related data collection stage
+            StageX stageX = stageXRepository.findById(stageXId).orElse(null);
+            if (stageX == null) {
+                response.put("outcome", "error");
+                response.put("log_info", "StageX not found for ID: " + stageXId);
+                response.put("code", 404);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            Long pipelineXId = stageX.getPipelineX().getPxId();
+            StageX dataCollectionStage = stageXRepository.findDataCollectionStageByPipelineXId(pipelineXId);
+            if (dataCollectionStage == null) {
+                response.put("outcome", "error");
+                response.put("log_info", "No data collection stage found for pipelineXId: " + pipelineXId);
+                response.put("code", 404);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            // 4. Extract connection string from previous stage
+            String datapayloadJson = dataCollectionStage.getPayload();
+            Map<String, Object> datapayloadMap;
+            try {
+                datapayloadMap = objectMapper.readValue(datapayloadJson, new TypeReference<>() {});
+            } catch (Exception e) {
+                response.put("outcome", "error");
+                response.put("log_info", "Invalid datapayloadMap JSON: " + e.getMessage());
+                response.put("code", 400);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            String connectionString = datapayloadMap.getOrDefault("connectionString", "").toString();
+            if (connectionString.isEmpty()) {
+                response.put("outcome", "error");
+                response.put("log_info", "Missing 'connectionString' in data collection stage payload.");
+                response.put("code", 400);
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // 5. Extract user inputs
+            String tableName = payloadMap.getOrDefault("tableName", "").toString();
+            String csvFileName = payloadMap.getOrDefault("csvFileName", "").toString();
+
+            if (tableName.isEmpty() || csvFileName.isEmpty()) {
+                response.put("outcome", "error");
+                response.put("log_info", "Missing 'tableName' or 'csvFileName' in actionPayload.");
+                response.put("code", 400);
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // 6. Set up JDBC
+            DriverManagerDataSource dataSource = new DriverManagerDataSource();
+            dataSource.setUrl(connectionString);
+            dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+
+            JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+            // 7. Query the table
+            String query = "SELECT * FROM " + tableName;
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(query);
+
+            if (rows.isEmpty()) {
+                response.put("outcome", "error");
+                response.put("log_info", "Table '" + tableName + "' is empty.");
+                response.put("code", 204);
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body(response);
+            }
+
+            // 8. Prepare CSV file
+            File dir = new File("D:/DMBackend");
+            if (!dir.exists()) dir.mkdirs();
+
+            File csvFile = new File(dir, csvFileName.endsWith(".csv") ? csvFileName : csvFileName + ".csv");
+
+            try (PrintWriter pw = new PrintWriter(csvFile)) {
+                // Write header
+                Set<String> headers = rows.get(0).keySet();
+                pw.println(String.join(",", headers));
+
+                // Write each row
+                for (Map<String, Object> row : rows) {
+                    List<String> values = new ArrayList<>();
+                    for (String header : headers) {
+                        Object value = row.get(header);
+                        values.add(value != null ? value.toString().replace(",", " ") : "");
+                    }
+                    pw.println(String.join(",", values));
+                }
+            }
+
+            response.put("outcome", "positive");
+            response.put("log_info", "CSV file created successfully at: " + csvFile.getAbsolutePath());
+            response.put("code", 200);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("outcome", "error");
+            response.put("log_info", "Execution failed: " + e.getMessage());
+            response.put("code", 500);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 }
+
+
+
+
+
