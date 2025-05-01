@@ -88,6 +88,7 @@ public class GeneralService {
             response.put("dag", pipeline.getDag());
             response.put("status", pipeline.getStatus());
             response.put("createdAt", pipeline.getCreatedAt());
+            response.put("lastModifyiedAt", pipeline.getLastModifiedAt());
 
             return response;
         } catch (Exception e) {
