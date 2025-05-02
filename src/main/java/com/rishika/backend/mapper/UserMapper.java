@@ -12,6 +12,7 @@ public class UserMapper {
         user.setEmail(request.email());
         user.setPassword(request.password());
         user.setEncryptedpassword(encryptedPassword);
+         user.setUserInfo(request.userInfo());
 
         return user;
     }

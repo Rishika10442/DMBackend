@@ -24,6 +24,9 @@ public record UserRequest (
         @JsonProperty("password")
         @NotBlank(message = "Password is required")
         @Size(max = 100, message = "Password must not exceed 100 characters")
-        String password
+        String password,
+
+        @JsonProperty("user_info")
+        String userInfo
 ){
 }

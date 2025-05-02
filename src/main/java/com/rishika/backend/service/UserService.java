@@ -65,28 +65,29 @@ public class UserService implements UserDetailsService {
             List<Pipeline> pipelines = pipelineRepository.findByUser(user);
             List<PipelineX> pipelineXList = pipelineXRepository.findByUser(user);
 
-            // Safely handle nulls
-            List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
-                    .sorted(Comparator.comparing(
-                            Pipeline::getCreatedAt,
-                            Comparator.nullsLast(Comparator.naturalOrder())
-                    ).reversed())
-                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
-                    .toList() : new ArrayList<>();
-
-            List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
-                    .sorted(Comparator.comparing(
-                            PipelineX::getCreatedAt,
-                            Comparator.nullsLast(Comparator.naturalOrder())
-                    ).reversed())
-                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
-                    .toList() : new ArrayList<>();
+//            // Safely handle nulls
+//            List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
+//                    .sorted(Comparator.comparing(
+//                            Pipeline::getCreatedAt,
+//                            Comparator.nullsLast(Comparator.naturalOrder())
+//                    ).reversed())
+//                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
+//                    .toList() : new ArrayList<>();
+//
+//            List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
+//                    .sorted(Comparator.comparing(
+//                            PipelineX::getCreatedAt,
+//                            Comparator.nullsLast(Comparator.naturalOrder())
+//                    ).reversed())
+//                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
+//                    .toList() : new ArrayList<>();
 
             UserSummaryDTO userSummary = new UserSummaryDTO(
                     user.getUserId(),
                     user.getFirstName(),
                     user.getLastName(),
-                    user.getEmail()
+                    user.getEmail(),
+                    user.getUserInfo()
             );
 
             // Build the response
@@ -94,8 +95,8 @@ public class UserService implements UserDetailsService {
             response.put("success", true);
             response.put("token", token);
             response.put("user", userSummary);  // full user details (later we can replace this with a safe UserDTO if needed)
-            response.put("pipelines", pipelineSummaries);
-            response.put("pipelinesX", pipelineXSummaries);
+//            response.put("pipelines", pipelineSummaries);
+//            response.put("pipelinesX", pipelineXSummaries);
 
             return response;
 
@@ -189,27 +190,28 @@ public class UserService implements UserDetailsService {
             List<Pipeline> pipelines = pipelineRepository.findByUser(user);
             List<PipelineX> pipelineXList = pipelineXRepository.findByUser(user);
 
-            // Safely handle nulls
-            List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
-                    .sorted(Comparator.comparing(
-                            Pipeline::getCreatedAt,
-                            Comparator.nullsLast(Comparator.naturalOrder())
-                    ).reversed())
-                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
-                    .toList() : new ArrayList<>();
-
-            List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
-                    .sorted(Comparator.comparing(
-                            PipelineX::getCreatedAt,
-                            Comparator.nullsLast(Comparator.naturalOrder())
-                    ).reversed())                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
-                    .toList() : new ArrayList<>();
+//            // Safely handle nulls
+//            List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
+//                    .sorted(Comparator.comparing(
+//                            Pipeline::getCreatedAt,
+//                            Comparator.nullsLast(Comparator.naturalOrder())
+//                    ).reversed())
+//                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
+//                    .toList() : new ArrayList<>();
+//
+//            List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
+//                    .sorted(Comparator.comparing(
+//                            PipelineX::getCreatedAt,
+//                            Comparator.nullsLast(Comparator.naturalOrder())
+//                    ).reversed())                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
+//                    .toList() : new ArrayList<>();
 
             UserSummaryDTO userSummary = new UserSummaryDTO(
                     user.getUserId(),
                     user.getFirstName(),
                     user.getLastName(),
-                    user.getEmail()
+                    user.getEmail(),
+                    user.getUserInfo()
             );
 
             // Build the response
@@ -217,8 +219,8 @@ public class UserService implements UserDetailsService {
             response.put("success", true);
             response.put("token", token);
             response.put("user", userSummary);  // full user details
-            response.put("pipelines", pipelineSummaries);
-            response.put("pipelinesX", pipelineXSummaries);
+//            response.put("pipelines", pipelineSummaries);
+//            response.put("pipelinesX", pipelineXSummaries);
 
             return response;
 

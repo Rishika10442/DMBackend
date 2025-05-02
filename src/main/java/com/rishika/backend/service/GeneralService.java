@@ -81,6 +81,21 @@ public class GeneralService {
                 );
             }
 
+            // Fetch all stages for this pipeline
+            List<Stage> stages = stageRepository.findByPipelinePid(pId);
+
+            List<Map<String, Object>> stageList = stages.stream()
+                    .map(stage -> {
+                        Map<String, Object> stageMap = new HashMap<>();
+                        stageMap.put("sid", stage.getSid());
+                        stageMap.put("name", stage.getName());
+                        stageMap.put("userStageId", stage.getUserStageId());
+                        stageMap.put("payload", stage.getPayload());
+                        return stageMap;
+                    })
+                    .toList();
+
+
             // Prepare the response map with required fields
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -89,6 +104,8 @@ public class GeneralService {
             response.put("status", pipeline.getStatus());
             response.put("createdAt", pipeline.getCreatedAt());
             response.put("lastModifyiedAt", pipeline.getLastModifiedAt());
+            response.put("stages", stageList);
+
 
             return response;
         } catch (Exception e) {
@@ -260,11 +277,12 @@ public class GeneralService {
 
             // Step 3: Convert to DTOs with safe null handling and sorting
             List<PipelineSummaryDTO> pipelineSummaries = (pipelines != null) ? pipelines.stream()
+                    .filter(p -> !"DISABLED".equalsIgnoreCase(p.getStatus()))
                     .sorted(Comparator.comparing(
                             Pipeline::getCreatedAt,
                             Comparator.nullsLast(Comparator.naturalOrder())
                     ).reversed())
-                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName()))
+                    .map(p -> new PipelineSummaryDTO(p.getPid(), p.getPName(),p.getCreatedAt()))
                     .toList() : new ArrayList<>();
 
             List<PipelineXSummaryDTO> pipelineXSummaries = (pipelineXList != null) ? pipelineXList.stream()
@@ -272,7 +290,7 @@ public class GeneralService {
                             PipelineX::getCreatedAt,
                             Comparator.nullsLast(Comparator.naturalOrder())
                     ).reversed())
-                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus()))
+                    .map(px -> new PipelineXSummaryDTO(px.getPxId(), px.getName(), px.getStatus(),px.getCreatedAt()))
                     .toList() : new ArrayList<>();
 
             // Step 4: Build the response

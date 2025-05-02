@@ -2,6 +2,8 @@ package com.rishika.backend.dto;
 
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -10,4 +12,5 @@ import lombok.*;
 public class PipelineSummaryDTO {
     private Long pid;
     private String pName;
+    private LocalDateTime createdAt;
 }

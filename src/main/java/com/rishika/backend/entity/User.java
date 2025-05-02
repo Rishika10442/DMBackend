@@ -29,4 +29,8 @@ public class User {
     @Column(name = "encryptedpassword", length = 100, nullable = false)
     private String encryptedpassword;
 
+    @Lob
+    @Column(name = "userInfo", columnDefinition = "LONGTEXT")
+    private String userInfo;
+
 }
