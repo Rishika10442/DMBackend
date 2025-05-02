@@ -37,6 +37,10 @@ public class ActionService {
     private final ObjectMapper objectMapper;
     @Value("${folderPath}")
     private String datafolderPath;
+
+    @Value("D:/DMBackend/")
+    private String savingsFolderPath;
+
     @Value("${spring.mail.username}")
     private String senderEmail;
 
@@ -189,7 +193,7 @@ public class ActionService {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
                 }
 
-                String basePath = "D:/DMBackend/";
+                String basePath = savingsFolderPath;
                 for (String fileName : fileNames) {
                     File file = new File(basePath + fileName);
                     if (!file.exists()) {
@@ -233,7 +237,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
-            final String SQL_BASE_DIR = "D:/DMBackend/";
+            final String SQL_BASE_DIR = savingsFolderPath;
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
 
@@ -337,7 +341,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
-            final String SQL_BASE_DIR = "d:/DMBackend/";
+            final String SQL_BASE_DIR = savingsFolderPath;
             Object stageXIdObj = request.get("stageXId");
             Object actionPayloadObj = request.get("actionPayload");
 
@@ -447,7 +451,7 @@ public class ActionService {
     public ResponseEntity<Map<String, Object>> load(Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
         ObjectMapper objectMapper = new ObjectMapper();
-        final String SQL_BASE_DIR = "D:/DMBackend/";
+        final String SQL_BASE_DIR = savingsFolderPath;
         try {
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
@@ -552,7 +556,7 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
-            final String SQL_BASE_DIR = "D:/DMBackend/";
+            final String SQL_BASE_DIR = savingsFolderPath;
             // 1. Get stageXId
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
 
@@ -853,7 +857,7 @@ public class ActionService {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }
             // Prepare output directory and file
-            String directoryPath = "D:/DMBackend";
+            String directoryPath = savingsFolderPath;
             File directory = new File(directoryPath);
             if (!directory.exists()) {
                 directory.mkdirs();
@@ -933,7 +937,7 @@ public class ActionService {
             // Case 1: CSV input
             if (payloadMap.containsKey("csvFile")) {
                 String csvFile = payloadMap.get("csvFile").toString();
-                String basePath = "D:/DMBackend/";
+                String basePath = savingsFolderPath;
                 File file = new File(basePath + csvFile);
                 logger.info("Looking for CSV file at: {}", file.getAbsolutePath());
                 if (!file.exists()) {
@@ -1084,7 +1088,7 @@ public class ActionService {
         multipart.addBodyPart(textPart);
 
         if (attachmentFile != null && !attachmentFile.isEmpty()) {
-            String fullPath = "D:/DMBackend/" + attachmentFile;
+            String fullPath = savingsFolderPath + attachmentFile;
             File file = new File(fullPath);
             if (file.exists() && file.canRead()) {
                 MimeBodyPart attachment = new MimeBodyPart();
@@ -1174,7 +1178,7 @@ public class ActionService {
         try (Connection conn = DriverManager.getConnection(connectionString)) {
 
             ObjectMapper mapper = new ObjectMapper();
-            String fullPath = "D:/DMBackend/" + fileName;
+            String fullPath = savingsFolderPath + fileName;
             File file = new File(fullPath);
             JsonNode jsonArray = mapper.readTree(file);
 
@@ -1567,7 +1571,7 @@ public class ActionService {
             }
 
             // 8. Prepare CSV file
-            File dir = new File("D:/DMBackend");
+            File dir = new File(savingsFolderPath);
             if (!dir.exists()) dir.mkdirs();
 
             File csvFile = new File(dir, csvFileName.endsWith(".csv") ? csvFileName : csvFileName + ".csv");
