@@ -95,7 +95,9 @@ public class UserService implements UserDetailsService {
             response.put("success", true);
             response.put("token", token);
             response.put("user", userSummary);  // full user details (later we can replace this with a safe UserDTO if needed)
-//            response.put("pipelines", pipelineSummaries);
+//            response.put("pipelines", pipelineS
+//
+//            ummaries);
 //            response.put("pipelinesX", pipelineXSummaries);
 
             return response;

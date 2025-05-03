@@ -517,7 +517,7 @@ private boolean canRunStage(Long sxId,
 //            .filter(dep -> dep.getStageX().getSxId().equals(sxId))
 //            .collect(Collectors.toList());
 
-    // Get the list of dependencies that the current stage (sxId) depends on (forward map)
+
     List<StageXDependency> dependencies = dependencyMap.getOrDefault(sxId, new ArrayList<>());
     if (dependencies.isEmpty()) return true;
 
@@ -533,32 +533,23 @@ private boolean canRunStage(Long sxId,
     int fullfilled = 0;
 
     for (StageXDependency dep : dependencies) {
-        Long dependsOnId = dep.getDependsOn().getSxId(); // Stage it depends on
-        String requiredOutcome = String.valueOf(dep.getStageOutcome()); // Required outcome
-        String actualOutcome = stageOutcomes.get(dependsOnId); // Actual outcome from completed stages
+        Long dependsOnId = dep.getDependsOn().getSxId();
+        String requiredOutcome = String.valueOf(dep.getStageOutcome());
+        String actualOutcome = stageOutcomes.get(dependsOnId);
 
 
         logger.info("➡️ Dependency: stage {} depends on stage {} with requiredOutcome='{}', actualOutcome='{}'",
                 sxId, dependsOnId, requiredOutcome, actualOutcome);
 
-        // ✅ Check if the dependency stage is completed
+
         if (!completedStages.contains(dependsOnId)) {
             logger.info("⛔ Dependency stage {} not completed yet. Skipping for now.", dependsOnId);
-            continue; // ⚠️ DON'T return false here!
+            continue;
         }
 
         boolean satisfied = actualOutcome != null && actualOutcome.equalsIgnoreCase(requiredOutcome);
         if(satisfied)fullfilled++;
 
-//        if (isConditional && satisfied) {
-//            logger.info("✅ Conditional dependency satisfied for stage {}", sxId);
-//            return true; // early return only when one is satisfied
-//        }
-//
-//        if (!isConditional && !satisfied) {
-//            logger.info("❌ Non-conditional dependency not satisfied for stage {}", sxId);
-//            return false;
-//        }
 
 
     }

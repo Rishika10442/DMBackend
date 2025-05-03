@@ -894,10 +894,13 @@ public class ActionService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
+
+
             Long stageXId = Long.parseLong(request.get("stageXId").toString());
             logger.info("Received email event for stageXId: {}", stageXId);
 
             String actionPayloadStr = request.get("actionPayload").toString();
+            logger.info("Received email event for actionPayload: {}", actionPayloadStr);
             Map<String, Object> payloadMap = objectMapper.readValue(actionPayloadStr, new TypeReference<>() {
             });
 
@@ -935,7 +938,7 @@ public class ActionService {
             List<String> emailList = new ArrayList<>();
 
             // Case 1: CSV input
-            if (payloadMap.containsKey("csvFile")) {
+            if (payloadMap.containsKey("csvFile") && payloadMap.get("csvFile") != null) {
                 String csvFile = payloadMap.get("csvFile").toString();
                 String basePath = savingsFolderPath;
                 File file = new File(basePath + csvFile);
@@ -962,8 +965,20 @@ public class ActionService {
 
             // Case 2: Database input
             else if (payloadMap.containsKey("tableName") && payloadMap.containsKey("columnName")) {
-                String tableName = payloadMap.get("tableName").toString();
-                String columnName = payloadMap.get("columnName").toString();
+                logger.info("here at email going to tables");
+//                String tableName = payloadMap.get("tableName").toString();
+//                String columnName = payloadMap.get("columnName").toString();
+                Object tableNameObj = payloadMap.get("tableName");
+                Object columnNameObj = payloadMap.get("columnName");
+
+                if (tableNameObj == null || columnNameObj == null) {
+                    response.put("outcome", "positive");
+                    response.put("log_info", "Missing 'tableName' or 'columnName' in payload.");
+                    return ResponseEntity.badRequest().body(response);
+                }
+
+                String tableName = tableNameObj.toString();
+                String columnName = columnNameObj.toString();
 
                 try (Connection conn = DriverManager.getConnection(connectionString)) {
                     String query = "SELECT " + columnName + " FROM " + tableName;
@@ -1543,11 +1558,11 @@ public class ActionService {
 
             // 5. Extract user inputs
             String tableName = payloadMap.getOrDefault("tableName", "").toString();
-            String csvFileName = payloadMap.getOrDefault("csvFileName", "").toString();
+            String csvFileName = payloadMap.getOrDefault("outputCsvFileName", "").toString();
 
             if (tableName.isEmpty() || csvFileName.isEmpty()) {
                 response.put("outcome", "error");
-                response.put("log_info", "Missing 'tableName' or 'csvFileName' in actionPayload.");
+                response.put("log_info", "Missing 'tableName' or 'outputCsvFileName' in actionPayload.");
                 response.put("code", 400);
                 return ResponseEntity.badRequest().body(response);
             }
